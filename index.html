@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Violation AI — Hermes 405B</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg:       #0e0e10;
+            --surface:  #141416;
+            --raised:   #1a1a1e;
+            --line:     #242428;
+            --line-hi:  #333338;
+            --red:      #c8102e;
+            --red-soft: rgba(200,16,46,0.10);
+            --red-glow: rgba(200,16,46,0.30);
+            --teal:     #00b896;
+            --teal-soft:rgba(0,184,150,0.08);
+            --gold:     #c9922a;
+            --gold-soft:rgba(201,146,42,0.10);
+            --t1:       #eeeef2;
+            --t2:       #7a7a8c;
+            --t3:       #44444e;
+            --sidebar:  260px;
+            --r:        8px;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            background: var(--bg);
+            color: var(--t1);
+            display: flex;
+        }
+
+        /* ========== SIDEBAR (desktop) ========== */
+        .sidebar {
+            width: var(--sidebar);
+            background: var(--surface);
+            border-right: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+            z-index: 20;
+        }
+
+        .sidebar-top {
+            padding: 22px 18px 18px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .wordmark {
+            font-family: 'DM Serif Display', serif;
+            font-size: 17px;
+            letter-spacing: 0.02em;
+            color: var(--t1);
+        }
+
+        .wordmark em { font-style: italic; color: var(--red); }
+
+        .wordmark-sub {
+            margin-top: 5px;
+            font-size: 9px;
+            color: var(--t3);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .new-btn {
+            display: block;
+            width: 100%;
+            margin-top: 14px;
+            padding: 9px 0;
+            background: transparent;
+            border: 1px solid var(--line-hi);
+            border-radius: var(--r);
+            color: var(--t2);
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            transition: border-color .2s, color .2s;
+        }
+
+        .new-btn:hover { border-color: var(--red); color: var(--red); }
+
+        .sidebar-section { padding: 16px 18px 8px; }
+
+        .sec-label {
+            font-size: 9px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--t3);
+            margin-bottom: 8px;
+        }
+
+        .hist-item {
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--t2);
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-left: 2px solid transparent;
+        }
+
+        .hist-item:hover { background: var(--raised); color: var(--t1); }
+        .hist-item.active {
+            background: var(--red-soft);
+            color: var(--red);
+            border-left-color: var(--red);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            border-top: 1px solid var(--line);
+            padding: 16px 18px;
+        }
+
+        .cfg-label {
+            font-size: 9px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--t3);
+            margin-bottom: 8px;
+        }
+
+        .cfg-row { display: flex; gap: 6px; }
+
+        .cfg-input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 7px 9px;
+            color: var(--teal);
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            outline: none;
+        }
+
+        .cfg-input:focus { border-color: var(--red); }
+
+        .cfg-save {
+            background: var(--raised);
+            border: 1px solid var(--line-hi);
+            border-radius: 6px;
+            padding: 7px 10px;
+            color: var(--t2);
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .cfg-save:hover { color: var(--red); border-color: var(--red); }
+
+        .conn-row {
+            margin-top: 9px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 10px;
+        }
+
+        .conn-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--t3);
+            transition: background .3s;
+        }
+        .conn-dot.online { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+        .conn-dot.offline { background: var(--red); }
+        .conn-txt.online { color: #22c55e; }
+
+        /* ========== MAIN ========== */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 52px;
+            border-bottom: 1px solid var(--line);
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .mode-group {
+            display: flex;
+            gap: 2px;
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: var(--r);
+            padding: 3px;
+        }
+
+        .mode-btn {
+            padding: 5px 12px;
+            border-radius: 5px;
+            border: none;
+            background: transparent;
+            color: var(--t2);
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .mode-btn.active { background: var(--red); color: #fff; }
+
+        .model-tag {
+            font-size: 9px;
+            color: var(--t3);
+            padding: 4px 10px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+        }
+        .model-tag b { color: var(--teal); font-weight: 400; }
+
+        .clear-btn {
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 5px 12px;
+            color: var(--t3);
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+        /* ========== MESSAGES ========== */
+        .msgs {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+
+        .mrow {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 0 20px;
+            animation: rise 0.2s ease;
+        }
+        .mrow + .mrow { margin-top: 20px; }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .mrow.user { display: flex; justify-content: flex-end; }
+        .ubub {
+            background: var(--red);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 12px 12px 2px 12px;
+            max-width: 75%;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .mrow.ai { display: flex; gap: 12px; align-items: flex-start; }
+        .ai-mark {
+            width: 28px; height: 28px;
+            border: 1px solid var(--red);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'DM Serif Display', serif;
+            font-size: 13px;
+            color: var(--red);
+            flex-shrink: 0;
+        }
+        .ai-body { flex: 1; }
+        .ai-lbl {
+            font-size: 9px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--red);
+            margin-bottom: 6px;
+        }
+        .abub {
+            background: var(--raised);
+            border: 1px solid var(--line);
+            border-radius: 2px 12px 12px 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .think-block {
+            border-left: 2px solid var(--gold);
+            background: var(--gold-soft);
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        .think-head {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            gap: 8px;
+            font-size: 10px;
+            color: var(--gold);
+        }
+        .think-body {
+            padding: 10px 12px;
+            font-size: 12px;
+            color: var(--t2);
+            border-top: 1px solid rgba(201,146,42,.2);
+        }
+        .ans-sep {
+            font-size: 9px;
+            color: var(--teal);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .sys-row { text-align: center; margin: 8px auto; }
+        .sys-pill {
+            font-size: 10px;
+            color: var(--t3);
+            padding: 3px 12px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .tdots { display: flex; gap: 5px; padding: 4px 0; }
+        .tdots i {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: blink 1.2s infinite;
+            font-style: normal;
+        }
+        @keyframes blink {
+            0%,100%{ opacity: .2; }
+            50%{ opacity: 1; }
+        }
+
+        /* Streaming cursor */
+        .stream-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: var(--red);
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: cursor-blink 0.6s steps(1) infinite;
+            border-radius: 1px;
+        }
+        @keyframes cursor-blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+
+        /* Word fade-in */
+        .word {
+            display: inline;
+            opacity: 0;
+            animation: word-in 0.15s ease forwards;
+        }
+        @keyframes word-in {
+            from { opacity: 0; transform: translateY(3px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .welcome {
+            max-width: 440px;
+            margin: 40px auto 0;
+            padding: 0 20px;
+        }
+        .wlc-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .wlc-title em { color: var(--red); font-style: italic; }
+        .wlc-desc {
+            font-size: 12px;
+            color: var(--t2);
+            margin-bottom: 24px;
+        }
+        .wlc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .wlc-card {
+            border: 1px solid var(--line);
+            border-radius: var(--r);
+            padding: 12px;
+            cursor: pointer;
+        }
+        .wlc-card:hover { border-color: var(--red); background: var(--red-soft); }
+        .wc-t { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+        .wc-d { font-size: 10px; color: var(--t3); }
+
+        /* ========== INPUT ========== */
+        .input-wrap {
+            padding: 12px 20px 20px;
+            border-top: 1px solid var(--line);
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+        .input-inner {
+            max-width: 720px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .input-field {
+            width: 100%;
+            background: var(--raised);
+            border: 1px solid var(--line-hi);
+            border-radius: 10px;
+            padding: 12px 50px 12px 16px;
+            color: var(--t1);
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            resize: none;
+            min-height: 48px;
+            outline: none;
+        }
+        .input-field:focus { border-color: var(--red); }
+        .send-btn {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            width: 32px;
+            height: 32px;
+            background: var(--red);
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+        .arrow {
+            width: 12px;
+            height: 12px;
+            border-right: 2px solid #fff;
+            border-top: 2px solid #fff;
+            transform: rotate(-45deg) translate(1px, -1px);
+            margin: 0 auto;
+        }
+        .input-meta {
+            max-width: 720px;
+            margin: 6px auto 0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--t3);
+        }
+
+        /* ========== FLOATING BACKEND PANEL (HP) ========== */
+        .fab-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 16px;
+            width: 48px;
+            height: 48px;
+            background: var(--red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 30;
+            border: none;
+            font-size: 20px;
+            transition: transform 0.2s;
+        }
+        .fab-btn:active { transform: scale(0.95); }
+
+        .mobile-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border-top: 2px solid var(--red);
+            padding: 16px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 40;
+            border-radius: 16px 16px 0 0;
+        }
+        .mobile-panel.open { transform: translateY(0); }
+        .panel-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--red);
+        }
+        .mobile-panel .cfg-row { margin-bottom: 10px; }
+        .mobile-panel .conn-row { margin-top: 8px; }
+        .close-panel {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: var(--t3);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        @media (min-width: 768px) {
+            .fab-btn, .mobile-panel { display: none; }
+        }
+        @media (max-width: 640px) {
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR DESKTOP -->
+<aside class="sidebar">
+    <div class="sidebar-top">
+        <div class="wordmark"><em>Violation</em> AI</div>
+        <div class="wordmark-sub">Hermes 405B · OpenRouter</div>
+        <button class="new-btn" onclick="newChat()">+ New Conversation</button>
+    </div>
+    <div class="sidebar-section">
+        <div class="sec-label">History</div>
+        <div class="hist-item active">Current session</div>
+    </div>
+    <div class="sidebar-footer">
+        <div class="cfg-label">API Settings</div>
+        <div class="cfg-row">
+            <input class="cfg-input" id="apiKeyInput" type="password" placeholder="OpenRouter API Key" value="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">
+        </div>
+        <div class="conn-row">
+            <div class="conn-dot online" id="connDotDesktop"></div>
+            <span class="conn-txt online" id="connTxtDesktop">Online · Hermes 405B</span>
+        </div>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+    <header class="header">
+        <div class="mode-group">
+            <button class="mode-btn" data-mode="normal">Normal</button>
+            <button class="mode-btn active" data-mode="r1">R1 Thinking</button>
+        </div>
+        <div class="header-right">
+            <div class="model-tag"><b>Hermes 3 405B</b> via OpenRouter</div>
+            <button class="clear-btn" onclick="clearChat()">Clear</button>
+        </div>
+    </header>
+
+    <div class="msgs" id="messages">
+        <div id="welcome" class="welcome">
+            <div class="wlc-title">Good to<br>see you.<br><em>Ask</em> anything.</div>
+            <p class="wlc-desc">Violation AI menggunakan <strong>Hermes 3 405B</strong> via OpenRouter.<br>API Key sudah terisi, langsung chat!</p>
+            <div class="wlc-grid">
+                <div class="wlc-card" onclick="fillInput('Jelaskan cara kerja neural network secara mendalam')"><div class="wc-t">Deep Analysis</div><div class="wc-d">R1 thinking process</div></div>
+                <div class="wlc-card" onclick="fillInput('Tulis kode Python untuk web scraping')"><div class="wc-t">Code Generation</div><div class="wc-d">Step-by-step</div></div>
+                <div class="wlc-card" onclick="fillInput('Apa perbedaan DeepSeek R1 dan GPT-4?')"><div class="wc-t">AI Comparison</div><div class="wc-d">Bandingkan model</div></div>
+                <div class="wlc-card" onclick="fillInput('Bantu debug kode JavaScript')"><div class="wc-t">Debug & Fix</div><div class="wc-d">Identifikasi bug</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-wrap">
+        <div class="input-inner">
+            <textarea class="input-field" id="msgInput" placeholder="Ketik pesan..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" onclick="sendMsg()"><div class="arrow"></div></button>
+        </div>
+        <div class="input-meta"><span>Enter kirim · Shift+Enter new line</span><span id="procLabel">⚡ Ready</span></div>
+    </div>
+</main>
+
+<!-- FLOATING BUTTON + PANEL HP -->
+<button class="fab-btn" id="fabBtn">⚡</button>
+<div class="mobile-panel" id="mobilePanel">
+    <button class="close-panel" id="closePanelBtn">✕</button>
+    <div class="panel-title">⚡ OpenRouter API Key</div>
+    <div class="cfg-row">
+        <input class="cfg-input" id="apiKeyMobile" type="password" placeholder="API Key" value="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">
+        <button class="cfg-save" onclick="saveApiKey()">Save</button>
+    </div>
+    <div class="conn-row">
+        <div class="conn-dot online" id="connDotMobile"></div>
+        <span class="conn-txt online" id="connTxtMobile">Online</span>
+    </div>
+</div>
+
+<script>
+    // === CONFIGURATION ===
+    const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+    const MODEL = "nousresearch/hermes-3-llama-3.1-405b:free";
+    
+    // Default API Key (sudah diisi)
+    let apiKey = localStorage.getItem('openrouterApiKey') || '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';
+    
+    // === GLOBAL STATE ===
+    let sid = localStorage.getItem('sid') || Math.random().toString(36).slice(2,10);
+    localStorage.setItem('sid', sid);
+    let mode = localStorage.getItem('aiMode') || 'r1';
+    let conversationHistory = [];
+
+    // === LOAD API KEY TO INPUTS ===
+    document.getElementById('apiKeyInput').value = apiKey;
+    document.getElementById('apiKeyMobile').value = apiKey;
+
+    // === MODE BUTTONS ===
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        if (btn.dataset.mode === mode) btn.classList.add('active');
+        btn.onclick = () => {
+            mode = btn.dataset.mode;
+            localStorage.setItem('aiMode', mode);
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            sys(`Mode: ${mode === 'r1' ? 'R1 Thinking' : 'Normal'}`);
+        };
+    });
+
+    // === SAVE API KEY ===
+    function saveApiKey() {
+        const newKey = document.getElementById('apiKeyMobile').value.trim();
+        if (newKey) {
+            apiKey = newKey;
+            localStorage.setItem('openrouterApiKey', apiKey);
+            document.getElementById('apiKeyInput').value = apiKey;
+            sys('✅ API Key saved!');
+            document.getElementById('mobilePanel').classList.remove('open');
+        }
+    }
+
+    // === UI HELPERS ===
+    function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
+    function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
+    function fillInput(t) { const el = document.getElementById('msgInput'); el.value = t; el.focus(); autoResize(el); }
+    
+    function sys(txt) {
+        hideWelcome();
+        const w = document.getElementById('messages');
+        const div = document.createElement('div'); div.className = 'sys-row';
+        div.innerHTML = `<div class="sys-pill">${escapeHtml(txt)}</div>`;
+        w.appendChild(div); w.scrollTop = w.scrollHeight;
+    }
+    
+    function hideWelcome() {
+        const w = document.getElementById('welcome');
+        if (w) w.remove();
+    }
+    
+    function addUser(txt) {
+        hideWelcome();
+        const w = document.getElementById('messages');
+        const div = document.createElement('div'); div.className = 'mrow user';
+        div.innerHTML = `<div class="ubub">${escapeHtml(txt)}</div>`;
+        w.appendChild(div); w.scrollTop = w.scrollHeight;
+        // Save to history
+        conversationHistory.push({ role: 'user', content: txt });
+    }
+    
+    function addTyping() {
+        hideWelcome();
+        const id = 'ty-' + Date.now();
+        const w = document.getElementById('messages');
+        const div = document.createElement('div'); div.id = id; div.className = 'mrow ai';
+        div.innerHTML = `<div class="ai-mark">V</div><div class="ai-body"><div class="ai-lbl">Violation AI</div><div class="abub"><div class="tdots"><i></i><i></i><i></i></div></div></div>`;
+        w.appendChild(div); w.scrollTop = w.scrollHeight;
+        return id;
+    }
+    
+    function removeTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
+    
+    // === STREAMING WORD ANIMATION ===
+    function streamWords(el, text, baseDelay = 0, onDone) {
+        const tokens = text.split(/(\s+)/);
+        let delay = baseDelay;
+        const cursor = document.createElement('span');
+        cursor.className = 'stream-cursor';
+        el.appendChild(cursor);
+
+        tokens.forEach((token) => {
+            if (token === '') return;
+            const span = document.createElement('span');
+            const isSpace = /^\s+$/.test(token);
+            if (isSpace) {
+                span.textContent = token;
+                span.style.animationDelay = delay + 'ms';
+                span.className = 'word';
+            } else {
+                span.textContent = token;
+                span.className = 'word';
+                span.style.animationDelay = delay + 'ms';
+                delay += Math.min(60, Math.max(18, token.length * 6));
+            }
+            el.insertBefore(span, cursor);
+        });
+
+        setTimeout(() => {
+            cursor.remove();
+            if (onDone) onDone();
+        }, delay + 100);
+        return delay;
+    }
+
+    function addAI(text, animate = true) {
+        const w = document.getElementById('messages');
+        const div = document.createElement('div'); div.className = 'mrow ai';
+        const bubId = 'bub-' + Date.now();
+        div.innerHTML = `<div class="ai-mark">V</div><div class="ai-body"><div class="ai-lbl">Violation AI · Hermes 405B</div><div class="abub" id="${bubId}" style="white-space:pre-wrap;min-height:24px;"></div></div>`;
+        w.appendChild(div);
+        w.scrollTop = w.scrollHeight;
+
+        const bub = document.getElementById(bubId);
+        if (animate) {
+            streamWords(bub, text, 0, () => { w.scrollTop = w.scrollHeight; });
+            const scroller = setInterval(() => { w.scrollTop = w.scrollHeight; }, 100);
+            setTimeout(() => clearInterval(scroller), text.length * 60 + 500);
+        } else {
+            bub.textContent = text;
+        }
+        // Save to history
+        conversationHistory.push({ role: 'assistant', content: text });
+    }
+
+    function addR1(thinking, answer) {
+        const thinkId = 'think-' + Date.now();
+        const ansId   = 'ans-' + Date.now();
+        const w = document.getElementById('messages');
+        const div = document.createElement('div'); div.className = 'mrow ai';
+        div.innerHTML = `
+            <div class="ai-mark">V</div>
+            <div class="ai-body">
+                <div class="ai-lbl">Violation AI · R1 · Hermes 405B</div>
+                <div class="abub">
+                    <div class="think-block">
+                        <div class="think-head" onclick="toggleThink('${thinkId}')">
+                            <span>🧠 Thinking Process</span>
+                            <span style="margin-left:auto;font-size:9px;color:var(--gold);">▼</span>
+                        </div>
+                        <div class="think-body" id="${thinkId}" style="display:block;white-space:pre-wrap;min-height:16px;"></div>
+                    </div>
+                    <div class="ans-sep">📌 Answer</div>
+                    <div id="${ansId}" style="white-space:pre-wrap;min-height:16px;"></div>
+                </div>
+            </div>`;
+        w.appendChild(div);
+        w.scrollTop = w.scrollHeight;
+
+        const thinkEl = document.getElementById(thinkId);
+        const ansEl   = document.getElementById(ansId);
+
+        const thinkDuration = streamWords(thinkEl, thinking, 0, () => {
+            streamWords(ansEl, answer, 0, () => { w.scrollTop = w.scrollHeight; });
+        });
+
+        const scroller = setInterval(() => { w.scrollTop = w.scrollHeight; }, 100);
+        setTimeout(() => clearInterval(scroller), (thinkDuration + answer.length * 50) + 800);
+        
+        // Save to history
+        conversationHistory.push({ role: 'assistant', content: `[THINKING]\n${thinking}\n[/THINKING]\n[ANSWER]\n${answer}\n[/ANSWER]` });
+    }
+
+    window.toggleThink = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    };
+
+    function escapeHtml(s) { return s.replace(/[&<>]/g, function(m) { return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m]; }); }
+
+    // === CALL OPENROUTER API ===
+    async function callOpenRouter(messages) {
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'HTTP-Referer': 'https://adit986.github.io/Websiteaifix/',
+                'X-Title': 'Violation AI'
+            },
+            body: JSON.stringify({
+                model: MODEL,
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: 4096
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+
+    // === SEND MESSAGE ===
+    async function sendMsg() {
+        const inp = document.getElementById('msgInput');
+        const msg = inp.value.trim();
+        if (!msg) return;
+        
+        if (!apiKey || apiKey === '') {
+            sys('❌ Set OpenRouter API Key dulu (klik tombol ⚡ merah)');
+            return;
+        }
+
+        addUser(msg);
+        inp.value = ''; inp.style.height = 'auto';
+        const typingId = addTyping();
+        const proc = document.getElementById('procLabel');
+        proc.innerHTML = mode === 'r1'
+            ? '<span style="color:var(--gold)">🧠 Thinking...</span>'
+            : '<span style="color:var(--teal)">⚡ Processing...</span>';
+
+        try {
+            let messages = [];
+            
+            if (mode === 'r1') {
+                // For R1 mode, we need to get thinking + answer in one response
+                messages = [
+                    { role: 'system', content: `Anda adalah Violation AI, asisten AI yang sangat cerdas dan analitis. 
+                    Untuk setiap pertanyaan, Anda HARUS:
+                    1. Melakukan analisis mendalam terlebih dahulu (thinking process)
+                    2. Setelah itu baru memberikan jawaban final
+                    
+                    Format respons Anda HARUS seperti ini:
+                    [THINKING]
+                    (tulis proses analisis Anda di sini, minimal 3-4 kalimat, jelaskan langkah-langkah berpikir Anda)
+                    [/THINKING]
+                    [ANSWER]
+                    (tulis jawaban final Anda di sini)
+                    [/ANSWER]` },
+                    ...conversationHistory.slice(-10)
+                ];
+            } else {
+                messages = [
+                    { role: 'system', content: `Anda adalah Violation AI, asisten AI yang cerdas, membantu, dan ramah. Berikan jawaban yang akurat, detail, dan mudah dipahami.` },
+                    ...conversationHistory.slice(-10)
+                ];
+            }
+            
+            const reply = await callOpenRouter(messages);
+            
+            removeTyping(typingId);
+            
+            if (mode === 'r1') {
+                const thinkMatch = reply.match(/\[THINKING\]([\s\S]*?)\[\/THINKING\]/);
+                const ansMatch = reply.match(/\[ANSWER\]([\s\S]*?)\[\/ANSWER\]/);
+                if (thinkMatch && ansMatch) {
+                    addR1(thinkMatch[1].trim(), ansMatch[1].trim());
+                } else {
+                    addAI(reply);
+                }
+            } else {
+                addAI(reply);
+            }
+            
+        } catch (err) {
+            removeTyping(typingId);
+            addAI(`❌ Error: ${err.message}\n\nPastikan API Key valid dan memiliki akses ke model Hermes 405B.`, false);
+        }
+        
+        proc.innerText = '⚡ Ready';
+    }
+
+    async function clearChat() {
+        conversationHistory = [];
+        newChat();
+        sys('Chat history cleared');
+    }
+    
+    function newChat() {
+        conversationHistory = [];
+        document.getElementById('messages').innerHTML = `<div id="welcome" class="welcome">
+            <div class="wlc-title">Good to<br>see you.<br><em>Ask</em> anything.</div>
+            <p class="wlc-desc">Violation AI menggunakan <strong>Hermes 3 405B</strong> via OpenRouter.<br>API Key sudah terisi, langsung chat!</p>
+            <div class="wlc-grid">
+                <div class="wlc-card" onclick="fillInput('Jelaskan cara kerja neural network secara mendalam')"><div class="wc-t">Deep Analysis</div><div class="wc-d">R1 thinking process</div></div>
+                <div class="wlc-card" onclick="fillInput('Tulis kode Python untuk web scraping')"><div class="wc-t">Code Generation</div><div class="wc-d">Step-by-step</div></div>
+                <div class="wlc-card" onclick="fillInput('Apa perbedaan DeepSeek R1 dan GPT-4?')"><div class="wc-t">AI Comparison</div><div class="wc-d">Bandingkan model</div></div>
+                <div class="wlc-card" onclick="fillInput('Bantu debug kode JavaScript')"><div class="wc-t">Debug & Fix</div><div class="wc-d">Identifikasi bug</div></div>
+            </div>
+        </div>`;
+        sid = Math.random().toString(36).slice(2,10);
+    }
+
+    // === FLOATING PANEL ===
+    const fab = document.getElementById('fabBtn');
+    const panel = document.getElementById('mobilePanel');
+    const closePanel = document.getElementById('closePanelBtn');
+    fab.onclick = () => panel.classList.toggle('open');
+    closePanel.onclick = () => panel.classList.remove('open');
+    
+    // Set status online
+    document.getElementById('connDotDesktop').className = 'conn-dot online';
+    document.getElementById('connTxtDesktop').className = 'conn-txt online';
+    document.getElementById('connDotMobile').className = 'conn-dot online';
+    document.getElementById('connTxtMobile').className = 'conn-txt online';
+    document.getElementById('modelName').innerText = 'Hermes 405B';
+</script>
+</body>
+</html>
